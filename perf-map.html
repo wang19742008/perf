@@ -1,0 +1,303 @@
+﻿<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>H5</title>
+
+	<script src="js/jquery-1.9.1.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+	
+    <!-- Bootstrap -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+	<link href="css/dashboard.css" rel="stylesheet">
+	<link rel="stylesheet" href="./js/ammap/ammap.css" type="text/css">
+	<script src="./js/ammap/ammap.js" type="text/javascript"></script>
+	
+	<script src="./js/ammap/maps/js/chinaLow.js" type="text/javascript"></script>
+	
+	<link rel="stylesheet" type="text/css" media="screen" href="./js/datetimepicker/jquery.datetimepicker.css" />
+	<script src="./js/datetimepicker/jquery.datetimepicker.js" type="text/javascript"></script>
+	
+	<script type="text/javascript">
+		$(function(){
+			$('#txttime').datetimepicker({
+				timepicker:false,
+				format:'Y-m-d'
+			});
+			$('#bt_query').bind('click',function(){
+				doFind();
+			});
+			doFind();
+		});
+		
+		function doFind(){
+			var access = $('input[name="rdnet"]:radio:checked').val();
+			var carrier = $('input[name="rdcarrier"]:radio:checked').val();
+			var os = $('input[name="rdos"]:radio:checked').val();
+			var refpid = $('#txtrefpid').val();
+			var time = $('input[name="rdtime"]:radio:checked').val();
+			
+			var st = 0;
+			var et = 0;
+			var dt;
+			if(time != 99){
+				dt = new Date(new Date().getTime() + time*24*3600*1000);
+			}else{
+				dt = new Date($('#txttime').val());
+				//console.log(dt);
+			}
+			
+			dt = new Date(dt.getFullYear(),dt.getMonth(), dt.getDate());
+			st = parseInt(dt.getTime()/1000);
+			et = st+24*3600;
+			
+			var p = {'type':2,'st':st, 'et':et, 'access': access, 'os':os, 'carrier':carrier, 'refpid': refpid};
+			console.log(p);
+			$.getJSON('/data', p , function(result){
+				console.log(result);
+				$.each(result, function(i,d){
+					var dt  = new Date(d.time*1000);
+					d.time = dt;
+				});
+				loadChart(result);
+				loadData(result);
+			});
+		}
+        function loadData(data){
+			$('#tableDetail_row').empty();
+			$.each(data,function(i,d){
+				$('#tableDetail_row').append('<tr><td>'+ d.loc_province +'</td><td>'+ d.t_img +'</td><td>'+ d.count +'</td></tr>');
+			});
+		}
+		function loadChart(data){
+			var locMap = {'北京':'CN-11','安徽':'CN-34','重庆':'CN-50','福建':'CN-35','广东':'CN-44','甘肃':'CN-62','广西':'CN-45','贵州':'CN-52','海南':'CN-46','河北':'CN-13','河南':'CN-41','香港':'CN-91','黑龙江':'CN-23','湖南':'CN-43','湖北':'CN-42','吉林':'CN-22','江苏':'CN-32','江西':'CN-36','辽宁':'CN-21','Macau':'CN-92','内蒙':'CN-15','宁夏':'CN-64','青海':'CN-63','陕西':'CN-61','四川':'CN-51','山东':'CN-37','上海':'CN-31','山西':'CN-14','天津':'CN-12','台湾':'CN-71','新疆':'CN-65','西藏':'CN-54','云南':'CN-53','浙江':'CN-33'};
+			var colorMap = {'t1':'#66CC99','t2':'#3366CC','t3':'#FFCC33','t4':'#FF0000'};
+			var mapData = [];
+			$.each(data,function(i,d){
+				var item = {};
+				item.title = d.loc_province;
+				item.id = locMap[d.loc_province];
+				item.customData = d.t_img;
+				if(d.t_img < 500){
+					item.color = colorMap['t1'];
+				}else if(d.t_img > 500 && d.t_img < 1000){
+					item.color = colorMap['t2'];
+				}else if(d.t_img > 1000 && d.t_img < 5000){
+					item.color = colorMap['t3'];
+				}else{
+					item.color = colorMap['t4'];
+				}
+				mapData.push(item);
+			});
+			var map;
+			map = new AmCharts.AmMap();
+			map.pathToImages = "./js/ammap/images/";
+
+			var dataProvider = {
+				mapVar: AmCharts.maps.chinaLow,
+				zoomLevel: 1//,
+				//zoomLongitude: 10,
+				//zoomLatitude: 52
+			};
+
+			map.areasSettings = {
+				unlistedAreasColor: "#DDDDDD",
+				rollOverOutlineColor: "#FFFFFF",
+				rollOverColor: "#CC0000",
+				balloonText: "[[title]] [[customData]]ms"
+			};
+
+			map.creditsPosition = "top-right";
+			/*
+			dataProvider.areas = [
+			{
+				title: "北京",
+				id: "CN-11",
+				color: "#3366CC",
+				customData: "300"},
+			{
+				title: "广州",
+				id: "CN-44",
+				color: "#FFCC33",
+				customData: "1000"},
+			];
+			*/
+			dataProvider.areas = mapData;
+			map.dataProvider = dataProvider;
+
+			var legend = {
+				width: 600,
+				backgroundAlpha: 0.5,
+				backgroundColor: "#FFFFFF",
+				borderColor: "#666666",
+				borderAlpha: 1,
+				bottom: 15,
+				left: 15,
+				horizontalGap: 10,
+				data: [
+				{
+					title: "<500",
+					color: colorMap['t1']},
+				{
+					title: "500-1000",
+					color: colorMap['t2']},
+				{
+					title: "1000-5000",
+					color: colorMap['t3']},
+				{
+					title: ">5000",
+					color: colorMap['t4']}
+				]
+			};
+
+			map.addLegend(legend);
+			map.write("mapdiv");
+
+		}
+	</script>
+    </head>
+  <body>
+   <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">H5性能报表</a>
+        </div>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav navbar-right">
+            <li><a href="#">Help</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-sm-3 col-md-2 sidebar">
+          <ul class="nav nav-sidebar">
+            <li><a href="perf.html">总览</a></li>
+            <li class="active"><a href="perf-map.html">地域</a></li>
+          </ul>
+        </div>
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <h1 class="page-header">地域报表</h1>
+			
+		<form class="form-horizontal" role="form">
+		<div class="form-group" >
+			<label for="inputEmail3" class="col-sm-2 control-label">时间：</label>
+			<div class="col-sm-10">
+				<label class="radio-inline">
+				  <input type="radio" name="rdtime" id="inlineRadio1" value="0" checked>今天
+				</label>
+				<label class="radio-inline">
+				  <input type="radio" name="rdtime" id="inlineRadio2" value="-1">昨天
+				</label>
+				<label class="radio-inline">
+				  <input type="radio" name="rdtime" id="inlineRadio2" value="99">自定义
+				</label>
+				
+                <input  size="16" type="text" id="txttime" value="">
+			</div>
+		</div>
+		<div class="form-group" >
+			<label for="inputEmail3" class="col-sm-2 control-label">操作系统：</label>
+			<div class="col-sm-10">
+				<div class="btn-group" data-toggle="buttons">
+				  <label class="btn btn-primary active">
+					<input type="radio" name="rdos" id="option1" autocomplete="off" value="" checked>全部
+				  </label>
+				  <label class="btn btn-primary">
+					<input type="radio" name="rdos" id="option2" autocomplete="off" value="android">Android
+				  </label>
+				  <label class="btn btn-primary">
+					<input type="radio" name="rdos" id="option2" autocomplete="off" value="ios">IOS
+				  </label>
+				</div>
+			</div>
+		</div>
+		<div class="form-group" >
+			<label for="inputEmail3" class="col-sm-2 control-label">网络：</label>
+			<div class="col-sm-10">
+				<div class="btn-group" data-toggle="buttons">
+				  <label class="btn btn-primary active">
+					<input type="radio" name="rdnet" id="option1" autocomplete="off" value="0" checked>全部
+				  </label>
+				  <label class="btn btn-primary">
+					<input type="radio" name="rdnet" id="option2" autocomplete="off" value="1">2G
+				  </label>
+				  <label class="btn btn-primary">
+					<input type="radio" name="rdnet" id="option2" autocomplete="off" value="2">3G
+				  </label>
+				  <label class="btn btn-primary">
+					<input type="radio" name="rdnet" id="option2" autocomplete="off" value="5">WIFI
+				  </label>
+				</div>
+			</div>
+		</div>
+		<div class="form-group">
+			<label for="inputEmail3" class="col-sm-2 control-label">运营商：</label>
+			<div class="col-sm-10">
+				<div class="btn-group" data-toggle="buttons">
+				  <label class="btn btn-primary active">
+					<input type="radio" name="rdcarrier" id="option1" autocomplete="off" value="" checked>全部
+				  </label>
+				  <label class="btn btn-primary">
+					<input type="radio" name="rdcarrier" id="option2" autocomplete="off" value="中国移动">中国移动
+				  </label>
+				  <label class="btn btn-primary">
+					<input type="radio" name="rdcarrier" id="option2" autocomplete="off" value="中国电信">中国电信
+				  </label>
+				  <label class="btn btn-primary">
+					<input type="radio" name="rdcarrier" id="option2" autocomplete="off" value="中国联通">中国联通
+				  </label>
+				</div>
+			</div>
+		</div>
+		
+		<div class="form-group" style="height:40px">
+			<label for="inputEmail3" class="col-sm-2 control-label">REFPID：</label>
+			<div class="col-sm-10">
+				<input type="text" class="form-control" id="txtrefpid" placeholder="mm_">
+			</div>
+		</div>
+			
+		<div class="form-group">
+			<div class="col-sm-offset-2 col-sm-10">
+				<input id="bt_query" type="button" class="btn btn-default" value="查询"/>
+			</div>
+		</div>	
+		
+		</form>
+          <div class="row placeholders">
+              <div id="mapdiv" style="width:100%; height:600px;"></div>
+          </div>
+		  
+		  <h2 class="sub-header">明细</h2>
+          <div class="table-responsive">
+            <table id="tableDetail" class="table table-striped">
+              <thead>
+                <tr>
+                  <th>地域</th>
+                  <th>加载时间</th>
+				  <th>访问次数</th>
+                </tr>
+              </thead>
+              <tbody id="tableDetail_row">
+                
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>
